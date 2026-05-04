@@ -17,6 +17,27 @@ The dataset contains results of international football matches from **1872 to pr
 
 ---
 
+## Package Installation
+
+```bash
+pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 python-dotenv==1.2.2 chromadb==1.5.8 sentence-transformers==5.4.1 accelerate==1.13.0
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Data ingestion & transformation | Apache Spark (PySpark) |
+| Data storage | Delta Lake (local) |
+| Vector store | ChromaDB (persistent) |
+| Embedding model | `BAAI/bge-large-en-v1.5` via SentenceTransformers |
+| LLM / Generator | `TinyLlama/TinyLlama-1.1B-Chat-v1.0` via Hugging Face `transformers` |
+| Feature engineering | PySpark SQL + NumPy + Pandas |
+
+---
+
 ## How It Works
 
 ```
@@ -83,7 +104,7 @@ tiki-taka-bot/
 ## ETL Pipeline
 
 ### 1. Data Preprocessing (`etl/data_preprocessing.py`)
-- Fetches raw international football results CSV from GitHub.
+- Fetches raw international football results CSV from https://github.com/martj42/international_results.
 - Converts it to a Spark DataFrame, filters out upcoming matches (no scores yet), and drops duplicates.
 - Derives `match_result` (home win / draw / away win), `total_goals`, `is_neutral`, and `match_importance`.
 - Writes the result to a **Delta Lake** table with upsert (merge) support so re-runs stay idempotent.
@@ -106,11 +127,11 @@ tiki-taka-bot/
 - Uses **SentenceTransformers** to produce dense vector embeddings in configurable batch sizes.
 - Upserts embeddings, documents, and metadata into a **ChromaDB** persistent collection with typed metadata filters.
 
-> Currently, match results are the data type stored in the vector DB. More information types (player stats, team form cards, etc.) are planned.
+> Currently, match results are the data type stored in the vector DB. More information types are planned.
 
 ### Generator / Semantic Search (`rag/generator.py`)
 - Encodes the user's natural-language question into a query vector.
-- Retrieves the top-N most semantically similar match records from ChromaDB using metadata filtering (`type: match_result`).
+- Retrieves the top-N most semantically similar match records from ChromaDB using metadata filtering (`type: match_result` - currently implemeted only for match result based searchings).
 - Passes the retrieved context + question to a **Hugging Face text-generation pipeline** (configurable model via `.env`).
 - Returns a concise, context-grounded answer — the LLM is instructed to act as a FIFA analyst and answer only from the provided context.
 - Exposes an interactive CLI (`greet_user`) so you can chat with the bot directly in the terminal.
@@ -154,26 +175,7 @@ python -m rag.generator
 
 ---
 
-## Package Installation
 
-```bash
-pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 python-dotenv==1.2.2 chromadb==1.5.8 sentence-transformers==5.4.1 accelerate==1.13.0
-```
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Data ingestion & transformation | Apache Spark (PySpark) |
-| Data storage | Delta Lake (local) |
-| Vector store | ChromaDB (persistent) |
-| Embedding model | `BAAI/bge-large-en-v1.5` via SentenceTransformers |
-| LLM / Generator | `TinyLlama/TinyLlama-1.1B-Chat-v1.0` via Hugging Face `transformers` |
-| Feature engineering | PySpark SQL + NumPy + Pandas |
-
----
 
 ## Status
 
@@ -184,7 +186,7 @@ pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 pyt
 - [x] LLM response generation (CLI bot)
 - [ ] Vector embeddings — player stats, team form, and more
 - [ ] Streaming pipeline
-- [ ] REST API / web interface
+- [ ] REST API / web interface (frontend planned)
 
 ---
 
