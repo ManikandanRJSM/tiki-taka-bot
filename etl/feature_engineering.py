@@ -5,9 +5,7 @@ from CustomFactories.SparkSessionFactory import SparkSessionFactory
 from pyspark.sql.functions import col, isnan, to_date, when, count, monotonically_increasing_id, lit, sum, desc
 from pyspark.sql import functions as F
 from .app_constants.constants import result_map, K_map
-from delta.tables import DeltaTable
 from helpers.GetEnv import GetEnv
-from GlobalConstants.constants import pre_process_schema
 import json
 import argparse
 import numpy as np
@@ -19,7 +17,8 @@ if __name__ == '__main__':
     _env = GetEnv.get_env_variables()
 
     sparkSession = SparkSessionFactory.create_spark_session()
-    featured_delta_path = f"{_env['DATA_LAKE_PATH']}/featured_result"
+    featured_delta_path = f"{_env['DATA_LAKE_PATH']}/featured_result/result_data"
+    featured_csv_path = f"{_env['DATA_LAKE_PATH']}/featured_result/result_data_csv"
     delta_path = f"{_env['DATA_LAKE_PATH']}/preprocessed_result"
 
     dataframe = sparkSession.read.format('delta').load(delta_path)
@@ -241,6 +240,7 @@ if __name__ == '__main__':
         'last_5_away_win_rate_away_only' : col('last_5_away_win_rate_away_only').cast('double')
     })
 
+    feature_df.write.format('csv').mode("overwrite").option("header", True).save(featured_csv_path)
     feature_df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(featured_delta_path) # option("mergeSchema", "true") for schema evolution
 
     # if DeltaTable.isDeltaTable(spark_session, delta_path):

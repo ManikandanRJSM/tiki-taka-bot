@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 from io import StringIO
-from CustomFactories.SparkSessionFactory import SparkSessionFactory
+from .CustomFactories.SparkSessionFactory import SparkSessionFactory
 from pyspark.sql.functions import col, isnan, to_date, when, count, monotonically_increasing_id, lit, sum, desc
 from pyspark.sql import functions as F
 from .app_constants.constants import result_map, K_map
