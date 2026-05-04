@@ -2,7 +2,7 @@ from helpers.GetEnv import GetEnv
 import json
 import pandas as pd
 from CustomFactories.SparkSessionFactory import SparkSessionFactory
-from module_helpers.GetConnection import GetConnection
+from .module_helpers.GetConnection import GetConnection
 
 def generate_collection_text(collection_row):
         return f"""

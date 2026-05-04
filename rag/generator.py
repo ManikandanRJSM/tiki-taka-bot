@@ -2,11 +2,13 @@ from helpers.GetEnv import GetEnv
 from .module_helpers.GetConnection import GetConnection
 import torch
 from transformers import pipeline
+import os
 
 
 def SearchSemantic(user_prompt):
 
     _env = GetEnv.get_env_variables()
+    os.environ["HF_TOKEN"] = _env['HF_TOKEN']
 
     # Get and init the connection for collection and vector embedding model
     _con = GetConnection()
@@ -20,10 +22,10 @@ def SearchSemantic(user_prompt):
         where={'type' : 'match_result'}, # Meta data filter
         n_results=2
     )
-    return Generator(results, user_prompt)
+    return Generator(results, user_prompt, _env['LLM_MODEL_DEVICE'])
 
 
-def Generator(results, user_prompt):
+def Generator(results, user_question, device_type='cpu'):
 
     context = "\n".join(results['documents'][0])
 
@@ -50,9 +52,9 @@ def Generator(results, user_prompt):
 
     pipe = pipeline(
         "text-generation", 
-        model="TinyLlama/TinyLlama-1.1B-Chat-v1.0", 
+        model=_env['LLM_MODEL_NAME'], 
         dtype=torch.bfloat16, 
-        device_map="cpu"
+        device_map=device_type
     )
 
     # We use the tokenizer's chat template to format each message - see https://huggingface.co/docs/transformers/main/en/chat_templating
@@ -63,12 +65,15 @@ def Generator(results, user_prompt):
         },
         {
             "role": "user", 
-            "content": f"Context:\n{context}\n\nQuestion: {user_prompt}"
+            "content": f"Context:\n{context}\n\nQuestion: {user_question}"
         },
     ]
     prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
-    return outputs[0]["generated_text"]
+    full_text = outputs[0]["generated_text"]
+    response = full_text[len(prompt):].strip()
+
+    return response
 
 
 def greet_user():
@@ -81,18 +86,18 @@ def greet_user():
     print("How can I help you today?")
     
     while True:
-        user_prompt = input(f"\n{name}: ").strip()
+        user_question = input(f"\n{name}: ").strip()
         
-        if not user_prompt:
+        if not user_question:
             continue
         
-        if user_prompt.lower() in ["exit", "quit", "bye"]:
+        if user_question.lower() in ["exit", "quit", "bye"]:
             print(f"\nGoodbye {name}! See you soon! 👋⚽")
             break
         
         # Your ChromaDB query goes here
-        print(f"Searching for: {user_prompt}...")
-        SearchSemantic(user_prompt)
+        print(f"Searching for: {user_question}...")
+        print(SearchSemantic(user_question))
 
 if __name__ == "__main__":
 
