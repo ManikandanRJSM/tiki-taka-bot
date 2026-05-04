@@ -31,6 +31,8 @@ if __name__ == "__main__":
     featured_delta_path = f"{_env['DATA_LAKE_PATH']}/featured_result/result_data"
 
     dataframe = sparkSession.read.format('delta').load(featured_delta_path)
+    sparkSession.stop()
+    
     pdf = dataframe.toPandas()
     BATCH_SIZE = int(_env['VECTOR_EMBEDDING_BATCH_SIZE'])
 
@@ -88,4 +90,4 @@ if __name__ == "__main__":
     #     n_results=2 # how many results to return
     # )
     # print(json.dumps(results, indent=2))
-    sparkSession.stop()
+    
