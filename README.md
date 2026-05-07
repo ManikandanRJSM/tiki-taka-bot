@@ -29,7 +29,7 @@ pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 pyt
 
 | Layer | Technology |
 |---|---|
-| Data ingestion & transformation | Apache Spark (PySpark) |
+| Data ingestion & transformation | Apache Spark (PySpark) version 4.1.1 |
 | Data storage | Delta Lake (local) |
 | Vector store | ChromaDB (persistent) |
 | Embedding model | `BAAI/bge-large-en-v1.5` via SentenceTransformers |
