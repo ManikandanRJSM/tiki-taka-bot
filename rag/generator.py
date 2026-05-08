@@ -3,9 +3,20 @@ from .module_helpers.GetConnection import GetConnection
 import torch
 from transformers import pipeline
 import os
+from helpers.AppLogger import AppLogger
+import logging
 
 
-def SearchSemantic(user_prompt):
+
+
+global logger
+
+logger_object = AppLogger()
+
+logger = logger_object.init_log_config
+
+
+def SearchSemantic(user_prompt, mode = 'CLI'):
 
     _env = GetEnv.get_env_variables()
     os.environ["HF_TOKEN"] = _env['HF_TOKEN']
@@ -22,10 +33,10 @@ def SearchSemantic(user_prompt):
         where={'type' : 'match_result'}, # Meta data filter
         n_results=2
     )
-    return Generator(results, user_prompt, _env['LLM_MODEL_DEVICE'])
+    return Generator(results, user_prompt, mode, _env['LLM_MODEL_DEVICE'])
 
 
-def Generator(results, user_question, device_type='cpu'):
+def Generator(results, user_question, query_from, device_type='cpu'):
 
     context = "\n".join(results['documents'][0])
 
@@ -68,15 +79,36 @@ def Generator(results, user_question, device_type='cpu'):
             "content": f"Context:\n{context}\n\nQuestion: {user_question}"
         },
     ]
-    prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    outputs = pipe(prompt, max_new_tokens=256, do_sample=True, temperature=0.7, top_k=50, top_p=0.95)
+
+    generate_kwargs = {
+        "do_sample": True,
+        "temperature": 0.7,
+        "max_new_tokens": 1000,
+        "top_k": 50,
+        "top_p": 0.95
+    }
+    
+
+    prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True) #tokenize=False returns the strings instead of vectors
+    outputs = pipe(prompt, **generate_kwargs)
     full_text = outputs[0]["generated_text"]
+
+    logger.info(f'Token out - {len(pipe.tokenizer.encode(full_text))}')
+
     response = full_text[len(prompt):].strip()
 
-    return response
+    if query_from == 'CLI':
+        return response
+    else:
+        return {
+            'status' : 200,
+            'status_message' : 'Sucess',
+            'response' : response
+        }
 
 
 def greet_user():
+
     print("Hi! I'm Tiki-Taka AI Agent 🤖⚽")
     print("Before we get started...")
     
@@ -84,7 +116,8 @@ def greet_user():
     
     print(f"\nNice to meet you, {name}! 👋")
     print("How can I help you today?")
-    
+
+    logger.info('Starting session............')
     while True:
         user_question = input(f"\n{name}: ").strip()
         
@@ -101,8 +134,11 @@ def greet_user():
 
 if __name__ == "__main__":
 
+    logger.info('Enters Cli mode............')
+
     _env = GetEnv.get_env_variables()
     greet_user()
+    logger.info('Session Ended............')
 
     
     
