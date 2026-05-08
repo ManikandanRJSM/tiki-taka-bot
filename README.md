@@ -20,7 +20,7 @@ The dataset contains results of international football matches from **1872 to pr
 ## Package Installation
 
 ```bash
-pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 python-dotenv==1.2.2 chromadb==1.5.8 sentence-transformers==5.4.1 accelerate==1.13.0
+pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 python-dotenv==1.2.2 chromadb==1.5.8 sentence-transformers==5.4.1 accelerate==1.13.0 flask==3.1.3
 ```
 
 ---
@@ -35,6 +35,7 @@ pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 pyt
 | Embedding model | `BAAI/bge-large-en-v1.5` via SentenceTransformers |
 | LLM / Generator | `TinyLlama/TinyLlama-1.1B-Chat-v1.0` via Hugging Face `transformers` |
 | Feature engineering | PySpark SQL + NumPy + Pandas |
+| Web interface | Flask 3.1.3 |
 
 ---
 
@@ -186,7 +187,7 @@ python -m rag.generator
 - [x] LLM response generation (CLI bot)
 - [ ] Vector embeddings — player stats, team form, and more
 - [ ] Streaming pipeline
-- [ ] REST API / web interface (frontend planned)
+- [x] REST API / web interface (Flask 3.1.3)
 
 ---
 
