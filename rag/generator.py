@@ -4,14 +4,13 @@ import torch
 from transformers import pipeline
 import os
 from helpers.AppLogger import AppLogger
-import logging
-
-
+from rank_bm25 import BM25Okapi
+import re
 
 
 global logger
 
-logger_object = AppLogger()
+logger_object = AppLogger(file_name = 'generator_log')
 
 logger = logger_object.init_log_config
 
@@ -23,7 +22,7 @@ def SearchSemantic(user_prompt, mode = 'CLI'):
 
     # Get and init the connection for collection and vector embedding model
     _con = GetConnection()
-    client, embedding_model, collection = _con.initConnection()
+    client, embedding_model, reranker, collection = _con.initConnection()
 
     query_vector = embedding_model.encode(user_prompt) # Convert the user promt into tokens and vectors
 
@@ -31,8 +30,25 @@ def SearchSemantic(user_prompt, mode = 'CLI'):
     results = collection.query(
         query_embeddings=[query_vector.tolist()],
         where={'type' : 'match_result'}, # Meta data filter
-        n_results=2
+        n_results=3
     )
+
+    if len(results['documents'][0]) <= 0:
+        return Generator(['No records available in the database'], user_prompt, mode, _env['LLM_MODEL_DEVICE'])
+
+    score, top_n = init_bm(document = results, user_prompt = user_prompt, THRESHOLD = 0.5)
+    print(score, top_n)
+    exit()
+    
+    
+   
+    # pairs = [[user_prompt, doc] for doc in results['documents'][0]]
+
+    # scores = reranker.predict(pairs)
+
+    # doc = results['documents'][0][scores.argmax()]
+    
+    
     return Generator(results, user_prompt, mode, _env['LLM_MODEL_DEVICE'])
 
 
@@ -105,7 +121,42 @@ def Generator(results, user_question, query_from, device_type='cpu'):
             'status_message' : 'Sucess',
             'response' : response
         }
+    
 
+def init_bm(**kwargs):
+
+    logger.info(f'Entered into BM function - BM Threshold set to {kwargs['THRESHOLD']}............')
+
+    patterns_arr = ['Match: ', 'Date: ', 'Competition: ', 'Result: ', 'Venue city: ', 'Venue country: ', 'Is neutral: ', 'Winner: ']
+
+    pattern = "|".join(map(re.escape, patterns_arr))
+
+    results = kwargs['document']
+   
+    tokenized_corpus = [
+        [item.strip() for item in re.sub(pattern, "", doc).lower().split('\n')]
+        for doc in results['documents'][0]
+    ]
+    
+    bm25 = BM25Okapi(tokenized_corpus)
+    
+    
+    tokenized_query = kwargs['user_prompt'].lower().split()
+
+    scores = bm25.get_scores(tokenized_query)
+    top_n = bm25.get_top_n(tokenized_query, results['documents'][0], n=3)
+
+    logger.info(f'BM Scores : {scores} - Top results : {top_n}............')
+
+    if scores < kwargs['THRESHOLD']:
+        return {
+            ''
+        }
+
+    return scores, top_n
+
+    # print("Scores:", scores)
+    # print("Top results:", top_n)
 
 def greet_user():
 

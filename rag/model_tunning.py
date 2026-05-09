@@ -58,7 +58,7 @@ print(f"Model dtype after aggressive full cast: {next(model.parameters()).dtype}
 # Option A: from JSON file in Drive
 dataset = load_dataset(
     "json",
-    data_files="./sample_data/fine_tunning.json",
+    data_files="./sample_data/fine_tuning/fine_tunning.json",
     split="train"
 )
 
