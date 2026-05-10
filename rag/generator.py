@@ -6,6 +6,7 @@ import os
 from helpers.AppLogger import AppLogger
 from rank_bm25 import BM25Okapi
 import re
+from .evals.RunTimeEvals import RunTimeEvals
 
 
 global logger
@@ -35,47 +36,23 @@ def SearchSemantic(user_prompt, mode = 'CLI'):
 
     if len(results['documents'][0]) <= 0:
         return Generator(['No records available in the database'], user_prompt, mode, _env['LLM_MODEL_DEVICE'])
+    bm25_results = init_bm(document = results, user_prompt = user_prompt, THRESHOLD = '0.5')
 
-    score, top_n = init_bm(document = results, user_prompt = user_prompt, THRESHOLD = 0.5)
-    print(score, top_n)
-    exit()
-    
-    
-   
-    # pairs = [[user_prompt, doc] for doc in results['documents'][0]]
+    if bm25_results['is_correct_document']:
 
-    # scores = reranker.predict(pairs)
+        # Re-ranker machnism to strengthen the RAG from top n documents from bestmatching
+        pairs = [[user_prompt, doc] for doc in bm25_results['top_n']]
+        scores = reranker.predict(pairs)
+        re_rank_doc = bm25_results['top_n'][scores.argmax()]
+        
+        return Generator(re_rank_doc, user_prompt, mode, _env['LLM_MODEL_DEVICE'])
 
-    # doc = results['documents'][0][scores.argmax()]
-    
-    
-    return Generator(results, user_prompt, mode, _env['LLM_MODEL_DEVICE'])
+    return "I'm sorry, I don't have enough information in my current knowledge base to answer this"
 
 
 def Generator(results, user_question, query_from, device_type='cpu'):
 
-    context = "\n".join(results['documents'][0])
-
-    # tokenizer = AutoTokenizer.from_pretrained("google/gemma-2b")
-    # model = AutoModelForCausalLM.from_pretrained("google/gemma-2b")
-
-
-    # response = ollama.chat(
-    #     model="phi3",             # better than TinyLlama now!
-    #     messages=[
-    #         {
-    #             "role": "system",
-    #             "content": "FIFA analyst. Answer only from context. Be concise."
-    #         },
-    #         {
-    #             "role": "user",
-    #             "content": f"Context:\n{context}\n\nQuestion: {user_prompt}"
-    #         }
-    #     ]
-    # )
-
-    # return response['message']['content']
-
+    context = "\n".join(results)
 
     pipe = pipeline(
         "text-generation", 
@@ -83,6 +60,8 @@ def Generator(results, user_question, query_from, device_type='cpu'):
         dtype=torch.bfloat16, 
         device_map=device_type
     )
+
+    logger.info(f"Enters into LLM model used : {_env['LLM_MODEL_NAME']}, device_type - {device_type}")
 
     # We use the tokenizer's chat template to format each message - see https://huggingface.co/docs/transformers/main/en/chat_templating
     messages = [
@@ -113,26 +92,32 @@ def Generator(results, user_question, query_from, device_type='cpu'):
 
     response = full_text[len(prompt):].strip()
 
-    if query_from == 'CLI':
-        return response
-    else:
-        return {
-            'status' : 200,
-            'status_message' : 'Sucess',
-            'response' : response
-        }
+    # Ragas Eval:
+    ragas_results = RunTimeEvals.ragas_eval(llm_response = response, logger_object = logger, llm_prompt = messages, user_question = user_question)
+
+    if ragas_results.value == 'pass':
+        if query_from == 'CLI':
+            return response
+        else:
+            return {
+                'status' : 200,
+                'status_message' : 'Sucess',
+                'response' : response
+            }
+        
+    return "I'm sorry, I don't have enough information in my current knowledge base to answer this"
     
 
 def init_bm(**kwargs):
 
-    logger.info(f'Entered into BM function - BM Threshold set to {kwargs['THRESHOLD']}............')
+    logger.info(f"Entered into BM function - BM Threshold set to {kwargs['THRESHOLD']}")
 
     patterns_arr = ['Match: ', 'Date: ', 'Competition: ', 'Result: ', 'Venue city: ', 'Venue country: ', 'Is neutral: ', 'Winner: ']
 
     pattern = "|".join(map(re.escape, patterns_arr))
 
     results = kwargs['document']
-   
+
     tokenized_corpus = [
         [item.strip() for item in re.sub(pattern, "", doc).lower().split('\n')]
         for doc in results['documents'][0]
@@ -144,16 +129,31 @@ def init_bm(**kwargs):
     tokenized_query = kwargs['user_prompt'].lower().split()
 
     scores = bm25.get_scores(tokenized_query)
-    top_n = bm25.get_top_n(tokenized_query, results['documents'][0], n=3)
+    top_n = bm25.get_top_n(tokenized_query, results['documents'][0], n=2)
 
-    logger.info(f'BM Scores : {scores} - Top results : {top_n}............')
+    logger.info(f'BM Scores : {scores} - Top results : {top_n}')
 
-    if scores < kwargs['THRESHOLD']:
+    has_threshold_list = [score > float(kwargs['THRESHOLD']) for score in scores]
+
+    relevane_document = [top_n[i] for i, val in enumerate(has_threshold_list) if val  ]
+
+    if True in has_threshold_list: #score greater than 0.5 the retrival text has the relevancy
         return {
-            ''
+            'eval_message' : 'strong_match',
+            'confidence': 'high',
+            'is_correct_document': True,
+            'scores': scores,
+            'top_n': relevane_document
         }
-
-    return scores, top_n
+    
+    return {
+            'eval_message' : 'weak_match',
+            'confidence': 'low',
+            'is_correct_document': False,
+            'scores': scores,
+            'top_n': top_n
+        }
+    
 
     # print("Scores:", scores)
     # print("Top results:", top_n)
