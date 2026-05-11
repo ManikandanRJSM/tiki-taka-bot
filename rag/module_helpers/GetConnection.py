@@ -1,7 +1,7 @@
 from helpers.GetEnv import GetEnv
 from chromadb.utils.embedding_functions import HuggingFaceEmbeddingFunction
 import chromadb
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 
 class GetConnection:
     def __init__(self):
@@ -31,5 +31,7 @@ class GetConnection:
             model_name=self.embedding_model
         )
 
+        reranker = CrossEncoder(_env['RERANKER_MODEL_NAME'])
+
         collection = client.get_or_create_collection(name=self.chroma_collection, embedding_function=hf_ef)
-        return client, embedding_model, collection
+        return client, embedding_model, reranker, collection

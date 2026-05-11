@@ -20,7 +20,7 @@ The dataset contains results of international football matches from **1872 to pr
 ## Package Installation
 
 ```bash
-pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 python-dotenv==1.2.2 chromadb==1.5.8 sentence-transformers==5.4.1 accelerate==1.13.0
+pip install pyspark==4.1.1 delta-spark==4.1.0 pandas==2.3.3 requests==2.25.1 python-dotenv==1.2.2 chromadb==1.5.8 sentence-transformers==5.4.1 accelerate==1.13.0 rank-bm25==0.2.2 ragas==0.4.3
 ```
 
 ---
