@@ -1,4 +1,3 @@
-from helpers.AppLogger import AppLogger
 from ragas.metrics import DiscreteMetric
 
 class RunTimeEvals():

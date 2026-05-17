@@ -8,6 +8,8 @@ from rank_bm25 import BM25Okapi
 import re
 from .evals.RunTimeEvals import RunTimeEvals
 
+from .guardrails.InputGuardrails import InputGuardrails
+
 
 global logger
 
@@ -160,6 +162,8 @@ def init_bm(**kwargs):
 
 def greet_user():
 
+    _env = GetEnv.get_env_variables()
+
     print("Hi! I'm Tiki-Taka AI Agent 🤖⚽")
     print("Before we get started...")
     
@@ -179,6 +183,15 @@ def greet_user():
             print(f"\nGoodbye {name}! See you soon! 👋⚽")
             break
         
+        #input guardrails:
+        logger.info('Input guardrail check started............')
+        input_guardrail = InputGuardrails.machine_learning_guardrails(user_input = user_question, logger_object = logger, _env = _env)
+        logger.info('Input guardrail check completed............')
+        
+        if input_guardrail != 'safe':
+            print(f"\n{name}! This query has been flagged as unsafe and cannot be processed. If you believe this is a mistake, please contact support.")
+            continue
+
         # Your ChromaDB query goes here
         print(f"Searching for: {user_question}...")
         print(SearchSemantic(user_question))
@@ -186,8 +199,6 @@ def greet_user():
 if __name__ == "__main__":
 
     logger.info('Enters Cli mode............')
-
-    _env = GetEnv.get_env_variables()
     greet_user()
     logger.info('Session Ended............')
 
